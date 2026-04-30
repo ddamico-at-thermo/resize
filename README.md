@@ -1,6 +1,7 @@
 **TOUCH UI IMAGE RESIZER**
 
 This is a tool for internal productivity use, designed to simplify regular resizing of uploaded images to preset Touch UI web template standards. It was created by Dana D'Amico in spring of 2026. 
+Pages URL: https://ddamico-at-thermo.github.io/resize/
 
 **HOW THIS TOOL WORKS**
 This is a client-side / serverless tool, which means that uploaded images remain local to your computer and browser and are not sent or saved on any server. 
