@@ -1,0 +1,565 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TUI Asset Resizer</title>
+    
+    <!-- 1. Tailwind CSS (Loads your styling dynamically) -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Babel (Translates the React code so the browser can read it) -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    
+    <!-- 3. Custom Styles -->
+    <style>
+        body { margin: 0; padding: 0; background-color: #020617; }
+        .custom-scrollbar::-webkit-scrollbar { width: 5px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: #334155; }
+        input[type=range]::-webkit-slider-thumb { 
+            -webkit-appearance: none; height: 18px; width: 18px; 
+            border-radius: 50%; background: #6366f1; cursor: pointer; 
+            border: 3px solid #020617; box-shadow: 0 0 10px rgba(99,102,241,0.3); 
+        }
+        .checkerboard-bg {
+            background-image: linear-gradient(45deg, #1e293b 25%, transparent 25%), 
+                              linear-gradient(-45deg, #1e293b 25%, transparent 25%), 
+                              linear-gradient(45deg, transparent 75%, #1e293b 75%), 
+                              linear-gradient(-45deg, transparent 75%, #1e293b 75%);
+            background-size: 20px 20px;
+            background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+            background-color: #0f172a;
+        }
+    </style>
+</head>
+<body class="text-slate-200 font-sans">
+    
+    <!-- The app will load into this container -->
+    <div id="root">
+        <div style="display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; color: #6366f1; font-family: sans-serif; font-weight: bold; letter-spacing: 2px;">
+            <svg class="animate-spin -ml-1 mr-3 h-8 w-8 text-indigo-500 mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            LOADING TOOL...
+        </div>
+    </div>
+
+    <!-- The actual application logic -->
+    <script type="text/babel" data-type="module">
+        // Import React modules
+        import React, { useState, useRef, useEffect, useCallback, useMemo } from 'https://esm.sh/react@18.2.0';
+        import { createRoot } from 'https://esm.sh/react-dom@18.2.0/client';
+        
+        // Import Lucide Icons
+        import { Upload, Download, Maximize, CheckCircle2, Layers, Boxes, ChevronRight, RotateCcw, Move, ScanLine, Frame, Image as ImageIcon, Map, ExternalLink, RefreshCw, Settings2 } from 'https://esm.sh/lucide-react@0.344.0';
+
+        const DATA = [
+          { type: "Brandfront", sub1: "Parent", sub2: "", component: "Applications", w: 680, h: 680, format: "jpg" },
+          { type: "Brandfront", sub1: "Parent", sub2: "", component: "Blog list", w: 400, h: 260, format: "jpg" },
+          { type: "Brandfront", sub1: "Parent", sub2: "", component: "Feature card", w: 2048, h: 1152, format: "jpg" },
+          { type: "Brandfront", sub1: "Parent", sub2: "", component: "Hero banner 1", w: 3840, h: 1000, format: "jpg" },
+          { type: "Brandfront", sub1: "Parent", sub2: "", component: "Hero banner: Image overlay", w: 763, h: 736, format: "png" },
+          { type: "Brandfront", sub1: "Parent", sub2: "", component: "Violator", w: 2280, h: 570, format: "jpg" },
+          { type: "Brandfront", sub1: "Child", sub2: "", component: "Hero banner 2", w: 2880, h: 400, format: "jpg" },
+          { type: "Brandfront", sub1: "Child", sub2: "", component: "Interact component", w: 1376, h: 440, format: "jpg" },
+          { type: "Brandfront", sub1: "Child", sub2: "", component: "Product card", w: 2048, h: 1152, format: "jpg" },
+          { type: "Brandfront", sub1: "Child", sub2: "", component: "Related pages - brandfront", w: 410, h: 410, format: "jpg" },
+          { type: "Brandfront", sub1: "Child", sub2: "", component: "Resources", w: 1600, h: 900, format: "jpg" },
+          { type: "Campaign", sub1: "Parent", sub2: "", component: "Child page introduction", w: 680, h: 680, format: "jpg" },
+          { type: "Campaign", sub1: "Parent", sub2: "", component: "Hero banner - campaign", w: 1856, h: 600, format: "jpg" },
+          { type: "Campaign", sub1: "Child", sub2: "", component: "Featured topic card", w: 400, h: 400, format: "jpg" },
+          { type: "Campaign", sub1: "Child", sub2: "", component: "Hero banner - standard", w: 1600, h: 600, format: "jpg" },
+          { type: "Campaign", sub1: "Child", sub2: "", component: "Interactive CTA box", w: 580, h: 360, format: "jpg" },
+          { type: "Events", sub1: "Parent", sub2: "", component: "Card image", w: 400, h: 260, format: "jpg" },
+          { type: "Events", sub1: "Parent", sub2: "", component: "Hero banner 1", w: 3840, h: 1000, format: "jpg" },
+          { type: "Events", sub1: "Child", sub2: "", component: "Hero banner - standard", w: 1600, h: 600, format: "jpg" },
+          { type: "Hub", sub1: "Parent", sub2: "", component: "Hero banner 1", w: 3840, h: 1000, format: "jpg" },
+          { type: "Hub", sub1: "Parent", sub2: "", component: "Interact component", w: 1376, h: 440, format: "jpg" },
+          { type: "Hub", sub1: "Parent", sub2: "", component: "Related pages - hub", w: 410, h: 410, format: "jpg" },
+          { type: "Hub", sub1: "Child", sub2: "", component: "Hero banner - standard", w: 1600, h: 600, format: "jpg" },
+          { type: "Learning Center", sub1: "Parent", sub2: "", component: "Article card", w: 400, h: 260, format: "jpg" },
+          { type: "Learning Center", sub1: "Parent", sub2: "", component: "Hero banner 2", w: 2880, h: 400, format: "jpg" },
+          { type: "Learning Center", sub1: "Child", sub2: "", component: "Hero banner - standard", w: 1600, h: 600, format: "jpg" },
+          { type: "Promotions", sub1: "Parent", sub2: "", component: "Hero banner 1", w: 3840, h: 1000, format: "jpg" },
+          { type: "Promotions", sub1: "Parent", sub2: "", component: "Hero banner: Image overlay", w: 763, h: 736, format: "png" },
+          { type: "Promotions", sub1: "Parent", sub2: "", component: "Interact component", w: 1376, h: 440, format: "jpg" },
+          { type: "Promotions", sub1: "Child", sub2: "", component: "Hero banner - standard", w: 1600, h: 600, format: "jpg" },
+          { type: "Single Page", sub1: "Parent", sub2: "", component: "Hero banner 1", w: 3840, h: 1000, format: "jpg" },
+          { type: "Single Page", sub1: "Parent", sub2: "", component: "Hero banner: Image overlay", w: 763, h: 736, format: "png" },
+          { type: "Single Page", sub1: "Parent", sub2: "", component: "Interact component", w: 1376, h: 440, format: "jpg" },
+          { type: "Store Home", sub1: "Parent", sub2: "", component: "Featured product card", w: 150, h: 150, format: "jpg" },
+          { type: "Store Home", sub1: "Parent", sub2: "", component: "Hero banner 3", w: 2880, h: 570, format: "jpg" },
+          { type: "Store Home", sub1: "Parent", sub2: "", component: "Interact component", w: 1376, h: 440, format: "jpg" },
+          { type: "Store Category", sub1: "Parent", sub2: "", component: "Hero banner 3", w: 2880, h: 570, format: "jpg" },
+          { type: "Store Category", sub1: "Parent", sub2: "", component: "Hero banner: Image overlay", w: 763, h: 736, format: "png" },
+          { type: "Store Category", sub1: "Parent", sub2: "", component: "Spotlight card", w: 800, h: 500, format: "jpg" },
+          { type: "Store", sub1: "Consumables", sub2: "Products", component: "Details section", w: 680, h: 680, format: "jpg" },
+          { type: "Store", sub1: "Consumables", sub2: "Products", component: "Image 1", w: 610, h: 410, format: "jpg" },
+          { type: "Store", sub1: "Consumables", sub2: "Products", component: "Table/workflow image", w: 200, h: 200, format: "jpg" },
+          { type: "Store", sub1: "Instrument", sub2: "Services", component: "Details card", w: 786, h: 786, format: "jpg" },
+          { type: "Store", sub1: "Instrument", sub2: "Tour", component: "Instrument features", w: 900, h: 600, format: "jpg" },
+          { type: "Store", sub1: "Solutions", sub2: "General", component: "Hero banner 3", w: 2880, h: 570, format: "jpg" },
+          { type: "Store", sub1: "Solutions", sub2: "General", component: "Hero banner: Image overlay", w: 763, h: 736, format: "png" },
+          { type: "Store", sub1: "Solutions", sub2: "General", component: "Spotlight card", w: 800, h: 500, format: "jpg" },
+          { type: "Store", sub1: "Solutions", sub2: "General", component: "Technologies or solutions image", w: 1315, h: 300, format: "jpg" },
+          { type: "Store", sub1: "Solutions", sub2: "Details", component: "Details section", w: 680, h: 680, format: "jpg" },
+          { type: "Store", sub1: "Solutions", sub2: "Details", component: "Image 1", w: 610, h: 410, format: "jpg" },
+          { type: "Store", sub1: "Solutions", sub2: "Resources", component: "Image & details square", w: 680, h: 680, format: "jpg" },
+          { type: "Store", sub1: "Solutions", sub2: "Resources", component: "Testimonial headshot", w: 200, h: 200, format: "jpg" },
+          { type: "Store", sub1: "Solutions", sub2: "Services", component: "Image 1", w: 610, h: 410, format: "jpg" },
+          { type: "Store", sub1: "Solutions", sub2: "Solutions", component: "Image 1", w: 610, h: 410, format: "jpg" },
+          { type: "Store", sub1: "Solutions", sub2: "Solutions", component: "Teaser 2", w: 600, h: 600, format: "jpg" },
+          { type: "Store", sub1: "Solutions", sub2: "Solutions", component: "Violator", w: 2280, h: 570, format: "jpg" },
+          { type: "Stories", sub1: "Parent", sub2: "", component: "Hero banner 1", w: 3840, h: 1000, format: "jpg" },
+          { type: "Stories", sub1: "Parent", sub2: "", component: "Hero banner: Image overlay", w: 763, h: 736, format: "png" },
+          { type: "Stories", sub1: "Parent", sub2: "", component: "Interact component", w: 1376, h: 440, format: "jpg" },
+          { type: "Stories", sub1: "Child", sub2: "", component: "Image - stories child", w: 2880, h: 570, format: "jpg" }
+        ];
+
+        const TEMPLATE_INFO_LINKS = {
+          "Brandfront": "https://thermofisher.sharepoint.com/sites/StrategicContent/SitePages/Brandfront.aspx",
+          "Campaign": "https://thermofisher.sharepoint.com/sites/StrategicContent/SitePages/Campaign.aspx",
+          "Events": "https://thermofisher.sharepoint.com/sites/StrategicContent/SitePages/Events.aspx",
+          "Hub": "https://thermofisher.sharepoint.com/sites/StrategicContent/SitePages/Hub.aspx",
+          "Learning Center": "https://thermofisher.sharepoint.com/sites/StrategicContent/SitePages/LearningCenter.aspx",
+          "Promotions": "https://thermofisher.sharepoint.com/sites/StrategicContent/SitePages/Promotions.aspx",
+          "Single Page": "https://thermofisher.sharepoint.com/sites/StrategicContent/SitePages/SinglePage.aspx",
+          "Store": "https://thermofisher.sharepoint.com/sites/StrategicContent/SitePages/S.aspx",
+          "Store Category": "https://thermofisher.sharepoint.com/sites/StrategicContent/SitePages/StoreCategory.aspx",
+          "Store Home": "https://thermofisher.sharepoint.com/sites/StrategicContent/SitePages/StoreHome.aspx",
+          "Stories": "https://thermofisher.sharepoint.com/sites/StrategicContent/SitePages/Stories.aspx"
+        };
+
+        function App() {
+          const [selectedType, setSelectedType] = useState("Brandfront");
+          const [selectedSub1, setSelectedSub1] = useState("Parent");
+          const [selectedSub2, setSelectedSub2] = useState("");
+          const [selectedComponent, setSelectedComponent] = useState(DATA[0]);
+
+          const [mode, setMode] = useState('preset');
+          const [customDimensions, setCustomDimensions] = useState({ w: 1000, h: 1000, format: 'jpg' });
+
+          const [imageFile, setImageFile] = useState(null);
+          const [imageObj, setImageObj] = useState(null);
+          const [projectName, setProjectName] = useState('asset');
+          const [isExporting, setIsExporting] = useState(false);
+
+          const [userScale, setUserScale] = useState(1);
+          const [userPosition, setUserPosition] = useState({ x: 0, y: 0 });
+          const [fitMode, setFitMode] = useState('fill'); 
+          const [isDragging, setIsDragging] = useState(false);
+          const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+
+          const canvasRef = useRef(null);
+          const fileInputRef = useRef(null);
+
+          const activeSpecs = useMemo(() => {
+            return mode === 'preset' ? selectedComponent : customDimensions;
+          }, [mode, selectedComponent, customDimensions]);
+
+          const types = useMemo(() => [...new Set(DATA.map(i => i.type))], []);
+          const sub1s = useMemo(() => [...new Set(DATA.filter(i => i.type === selectedType).map(i => i.sub1))], [selectedType]);
+          const sub2s = useMemo(() => [...new Set(DATA.filter(i => i.type === selectedType && i.sub1 === selectedSub1).map(i => i.sub2))], [selectedType, selectedSub1]);
+          const components = useMemo(() => DATA.filter(i => i.type === selectedType && i.sub1 === selectedSub1 && i.sub2 === selectedSub2), [selectedType, selectedSub1, selectedSub2]);
+
+          const handleTypeChange = (val) => {
+            setMode('preset');
+            setSelectedType(val);
+            const firstSub1 = DATA.find(i => i.type === val).sub1;
+            setSelectedSub1(firstSub1);
+            const firstSub2 = DATA.find(i => i.type === val && i.sub1 === firstSub1).sub2;
+            setSelectedSub2(firstSub2);
+            setSelectedComponent(DATA.find(i => i.type === val && i.sub1 === firstSub1 && i.sub2 === firstSub2));
+            resetTransform();
+          };
+
+          const handleSub1Change = (val) => {
+            setMode('preset');
+            setSelectedSub1(val);
+            const firstSub2 = DATA.find(i => i.type === selectedType && i.sub1 === val).sub2;
+            setSelectedSub2(firstSub2);
+            setSelectedComponent(DATA.find(i => i.type === selectedType && i.sub1 === val && i.sub2 === firstSub2));
+            resetTransform();
+          };
+
+          useEffect(() => {
+            if (!imageFile) return;
+            const url = URL.createObjectURL(imageFile);
+            const img = new Image();
+            img.onload = () => {
+              setImageObj(img);
+              resetTransform();
+            };
+            img.src = url;
+            return () => URL.revokeObjectURL(url);
+          }, [imageFile]);
+
+          const drawCanvas = useCallback(() => {
+            if (!canvasRef.current || !activeSpecs) return;
+            const canvas = canvasRef.current;
+            const ctx = canvas.getContext('2d');
+            const { w, h, format } = activeSpecs;
+            
+            canvas.width = w;
+            canvas.height = h;
+            
+            ctx.clearRect(0, 0, w, h);
+            
+            if (format === 'jpg') {
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, w, h);
+            }
+            
+            if (!imageObj) return;
+
+            let drawW, drawH, centerX, centerY;
+            if (fitMode === 'stretch') {
+              drawW = w * userScale; drawH = h * userScale;
+            } else if (fitMode === 'fit') {
+              const s = Math.min(w / imageObj.width, h / imageObj.height);
+              drawW = imageObj.width * s * userScale; drawH = imageObj.height * s * userScale;
+            } else {
+              const s = Math.max(w / imageObj.width, h / imageObj.height);
+              drawW = imageObj.width * s * userScale; drawH = imageObj.height * s * userScale;
+            }
+
+            centerX = (w - drawW) / 2 + (userPosition.x * userScale);
+            centerY = (h - drawH) / 2 + (userPosition.y * userScale);
+            ctx.drawImage(imageObj, centerX, centerY, drawW, drawH);
+          }, [imageObj, activeSpecs, userScale, userPosition, fitMode]);
+
+          useEffect(() => { drawCanvas(); }, [drawCanvas]);
+
+          const resetTransform = () => { setUserScale(1); setUserPosition({ x: 0, y: 0 }); };
+
+          const handleDownload = () => {
+            if (!canvasRef.current || !imageObj) return;
+            setIsExporting(true);
+            const { w, h, format } = activeSpecs;
+            const mimeType = format === 'png' ? 'image/png' : 'image/jpeg';
+            const quality = format === 'png' ? undefined : 0.92;
+            
+            const cleanName = projectName.toLowerCase().trim().replace(/\s+/g, '-').replace(/[^a-z0-9-]/g, '');
+            const dataUrl = canvasRef.current.toDataURL(mimeType, quality);
+            
+            const link = document.createElement('a');
+            link.download = `${cleanName}-${w}x${h}.${format}`;
+            link.href = dataUrl;
+            link.click();
+            setTimeout(() => setIsExporting(false), 500);
+          };
+
+          return (
+            <div className="min-h-screen p-4 md:p-6 flex flex-col">
+              <div className="max-w-[1600px] mx-auto w-full space-y-6 flex-grow">
+                <header className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-6">
+                  <div className="space-y-1">
+                    <h1 className="text-2xl font-black text-white tracking-tighter uppercase">TUI Asset Resizer</h1>
+                    <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">PPI Tool, Created by Dana D'Amico & Sandy Hammer</p>
+                  </div>
+                  <div className="flex items-center gap-4">
+                     <div className="text-right hidden sm:block">
+                       <div className="text-[8px] font-black text-slate-500 uppercase tracking-widest">Active Specs</div>
+                       <div className="text-sm font-mono text-indigo-400 font-bold uppercase">{activeSpecs?.w} x {activeSpecs?.h} . {activeSpecs?.format}</div>
+                     </div>
+                     <button 
+                       onClick={handleDownload} 
+                       disabled={!imageObj || isExporting}
+                       className="bg-white text-slate-950 px-8 py-3 rounded-xl font-black text-[11px] tracking-widest hover:bg-indigo-50 active:scale-95 disabled:bg-slate-800 disabled:text-slate-500 transition-all shadow-xl uppercase"
+                     >
+                       {isExporting ? 'Exporting...' : `Download ${activeSpecs?.format}`}
+                     </button>
+                  </div>
+                </header>
+
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+                  <div className="lg:col-span-2 space-y-4">
+                    <div className="flex items-center justify-between px-1">
+                      <div className="flex items-center gap-2">
+                        <Layers className="w-3.5 h-3.5 text-indigo-400" />
+                        <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">1. Page Type</h2>
+                      </div>
+                    </div>
+                    <div className="space-y-1.5 h-[65vh] overflow-y-auto pr-2 custom-scrollbar">
+                      <button
+                        onClick={() => setMode('custom')}
+                        className={`w-full p-3 rounded-xl text-[10px] font-black tracking-tight text-left transition-all border flex items-center justify-between mb-4 ${
+                          mode === 'custom' 
+                          ? 'bg-amber-600 border-amber-500 text-white shadow-lg' 
+                          : 'bg-slate-900/40 border-slate-800 text-amber-500/70 hover:border-amber-700 hover:bg-amber-500/10'
+                        }`}
+                      >
+                        CUSTOM DIMENSIONS
+                        {mode === 'custom' ? <Settings2 className="w-3.5 h-3.5" /> : <ChevronRight className="w-3 h-3" />}
+                      </button>
+
+                      <div className="border-t border-slate-800 pt-4 mb-2">
+                        <p className="text-[9px] font-black text-slate-600 uppercase tracking-[0.2em] mb-2 px-1">TUI Presets</p>
+                      </div>
+
+                      {types.map(t => (
+                        <button
+                          key={t}
+                          onClick={() => handleTypeChange(t)}
+                          className={`w-full p-3 rounded-xl text-[10px] font-black tracking-tight text-left transition-all border flex items-center justify-between ${
+                            (mode === 'preset' && selectedType === t) 
+                            ? 'bg-indigo-600 border-indigo-500 text-white shadow-lg' 
+                            : 'bg-slate-900/40 border-slate-800 text-slate-500 hover:border-slate-700'
+                          }`}
+                        >
+                          {t}
+                          {(mode === 'preset' && selectedType === t) && <ChevronRight className="w-3 h-3" />}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="lg:col-span-2 space-y-6">
+                    {mode === 'preset' ? (
+                      <>
+                        <div className="space-y-4">
+                          <div className="flex items-center gap-2 px-1">
+                            <Map className="w-3.5 h-3.5 text-indigo-400" />
+                            <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">2. Subtype</h2>
+                          </div>
+                          <div className="space-y-1.5">
+                            {sub1s.map(s => (
+                              <button
+                                key={s}
+                                onClick={() => handleSub1Change(s)}
+                                className={`w-full p-3 rounded-xl text-[10px] font-black tracking-tight text-left transition-all border ${
+                                  selectedSub1 === s 
+                                  ? 'bg-indigo-600 border-indigo-500 text-white' 
+                                  : 'bg-slate-900/40 border-slate-800 text-slate-500 hover:border-slate-700'
+                                }`}
+                              >
+                                {s || "Parent"}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {(sub2s.length > 1 || sub2s[0] !== "") && (
+                          <div className="space-y-4">
+                            <div className="flex items-center gap-2 px-1">
+                              <Frame className="w-3.5 h-3.5 text-indigo-400" />
+                              <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Subtype - L2</h2>
+                            </div>
+                            <div className="space-y-1.5">
+                              {sub2s.map(s => (
+                                <button
+                                  key={s}
+                                  onClick={() => { setSelectedSub2(s); setSelectedComponent(DATA.find(i => i.type === selectedType && i.sub1 === selectedSub1 && i.sub2 === s)); resetTransform(); }}
+                                  className={`w-full p-3 rounded-xl text-[10px] font-black tracking-tight text-left transition-all border ${
+                                    selectedSub2 === s 
+                                    ? 'bg-indigo-600 border-indigo-500 text-white' 
+                                    : 'bg-slate-900/40 border-slate-800 text-slate-500 hover:border-slate-700'
+                                  }`}
+                                >
+                                  {s || "None"}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </>
+                    ) : (
+                      <div className="space-y-6">
+                        <div className="flex items-center gap-2 px-1">
+                          <Settings2 className="w-3.5 h-3.5 text-amber-400" />
+                          <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Manual Setup</h2>
+                        </div>
+                        
+                        <div className="bg-slate-900/60 border border-slate-800 p-4 rounded-2xl space-y-4">
+                           <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-500 uppercase">Width (px)</label>
+                              <input 
+                                type="number" 
+                                value={customDimensions.w} 
+                                onChange={(e) => setCustomDimensions(prev => ({ ...prev, w: parseInt(e.target.value) || 0 }))}
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:ring-1 focus:ring-amber-500"
+                              />
+                           </div>
+                           <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-500 uppercase">Height (px)</label>
+                              <input 
+                                type="number" 
+                                value={customDimensions.h} 
+                                onChange={(e) => setCustomDimensions(prev => ({ ...prev, h: parseInt(e.target.value) || 0 }))}
+                                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs font-mono text-white outline-none focus:ring-1 focus:ring-amber-500"
+                              />
+                           </div>
+                           <div className="space-y-1">
+                              <label className="text-[9px] font-black text-slate-500 uppercase">Format</label>
+                              <div className="flex gap-2">
+                                {['jpg', 'png'].map(f => (
+                                  <button 
+                                    key={f}
+                                    onClick={() => setCustomDimensions(prev => ({ ...prev, format: f }))}
+                                    className={`flex-1 py-2 rounded-lg text-[9px] font-black uppercase transition-all border ${customDimensions.format === f ? 'bg-amber-500 border-amber-400 text-white' : 'bg-slate-950 border-slate-800 text-slate-500'}`}
+                                  >
+                                    {f}
+                                  </button>
+                                ))}
+                              </div>
+                           </div>
+                        </div>
+                        <div className="p-3 bg-amber-500/5 border border-amber-500/20 rounded-xl">
+                          <p className="text-[9px] leading-relaxed text-amber-200/60 italic font-medium">
+                            Manual mode allows you to define exact dimensions for non-standard assets.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="lg:col-span-8 grid grid-cols-1 xl:grid-cols-12 gap-6">
+                    <div className="xl:col-span-4 space-y-4">
+                      <div className="flex items-center gap-2 px-1">
+                        <Boxes className="w-3.5 h-3.5 text-indigo-400" />
+                        <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">3. Component</h2>
+                      </div>
+                      <div className="space-y-1.5 h-[60vh] overflow-y-auto pr-2 custom-scrollbar">
+                        {mode === 'preset' ? components.map(item => (
+                          <button
+                            key={item.component}
+                            onClick={() => { setSelectedComponent(item); resetTransform(); }}
+                            className={`w-full p-4 rounded-xl text-left border transition-all flex flex-col gap-1.5 ${
+                              selectedComponent?.component === item.component 
+                              ? 'bg-indigo-500/10 border-indigo-500 text-white ring-1 ring-indigo-500/50' 
+                              : 'bg-slate-900/40 border-slate-800 text-slate-500 hover:border-slate-700'
+                            }`}
+                          >
+                            <div className="flex justify-between items-center gap-2">
+                              <span className="text-[11px] font-black uppercase leading-tight truncate">{item.component}</span>
+                              {selectedComponent?.component === item.component && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-400" />}
+                            </div>
+                            <div className="flex items-center gap-2">
+                               <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono tracking-tighter ${item.format === 'png' ? 'bg-amber-500/20 text-amber-400' : 'bg-slate-800 text-slate-400'}`}>
+                                {item.w} x {item.h} ({item.format.toUpperCase()})
+                               </span>
+                            </div>
+                          </button>
+                        )) : (
+                          <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-slate-900/20 border border-dashed border-slate-800 rounded-3xl gap-4">
+                             <Settings2 className="w-8 h-8 text-slate-700" />
+                             <p className="text-[10px] font-bold text-slate-600 uppercase tracking-widest">Custom Mode Active<br/>Presets Hidden</p>
+                             <button onClick={() => setMode('preset')} className="text-[9px] font-black text-indigo-400 hover:text-white uppercase tracking-tighter underline underline-offset-4">Back to Presets</button>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="xl:col-span-8 space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Maximize className="w-3.5 h-3.5 text-indigo-400" />
+                          <h2 className="text-[10px] font-black text-slate-500 uppercase tracking-widest">4. Preview & Refine</h2>
+                        </div>
+                        <div className="flex gap-2">
+                           {imageObj && (
+                             <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 border border-slate-700 text-slate-300 rounded-lg text-[9px] font-black uppercase tracking-widest hover:bg-slate-700 hover:text-white transition-all"
+                             >
+                               <RefreshCw className="w-3 h-3" /> Replace Image
+                             </button>
+                           )}
+                           <div className="flex bg-slate-900/80 p-1 rounded-lg border border-slate-800">
+                             {['fill', 'fit', 'stretch'].map(m => (
+                               <button key={m} onClick={() => setFitMode(m)} className={`px-3 py-1 rounded-md text-[9px] font-black uppercase tracking-widest transition-all ${fitMode === m ? 'bg-indigo-500 text-white shadow-lg' : 'text-slate-500 hover:text-slate-300'}`}>{m}</button>
+                             ))}
+                           </div>
+                        </div>
+                      </div>
+
+                      <div className={`relative aspect-video w-full border border-slate-800 rounded-[32px] flex items-center justify-center overflow-hidden shadow-2xl ${activeSpecs?.format === 'png' ? 'checkerboard-bg' : 'bg-[#020617]'}`}>
+                        {!imageObj ? (
+                          <div onClick={() => fileInputRef.current?.click()} className="flex flex-col items-center gap-4 cursor-pointer group z-10">
+                            <div className="w-16 h-16 rounded-3xl bg-slate-900 border border-slate-800 flex items-center justify-center text-indigo-500 group-hover:scale-110 group-hover:border-indigo-500/50 transition-all duration-300">
+                              <Upload className="w-8 h-8" />
+                            </div>
+                            <p className="text-[10px] font-black text-slate-200 tracking-widest uppercase bg-slate-950/50 px-3 py-1 rounded">Upload image to begin</p>
+                            <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && setImageFile(e.target.files[0])} accept="image/*" className="hidden" />
+                          </div>
+                        ) : (
+                          <>
+                            <input type="file" ref={fileInputRef} onChange={(e) => e.target.files?.[0] && setImageFile(e.target.files[0])} accept="image/*" className="hidden" />
+                            <div 
+                              className="relative shadow-2xl ring-1 ring-white/5 overflow-hidden"
+                              style={{ 
+                                width: 'min(94%, 100%)', 
+                                aspectRatio: `${activeSpecs?.w} / ${activeSpecs?.h}`, 
+                                cursor: isDragging ? 'grabbing' : 'grab' 
+                              }}
+                              onMouseDown={(e) => { setIsDragging(true); setDragStart({ x: e.clientX - userPosition.x, y: e.clientY - userPosition.y }); }}
+                              onMouseMove={(e) => { if (isDragging) setUserPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }); }}
+                              onMouseUp={() => setIsDragging(false)}
+                              onMouseLeave={() => setIsDragging(false)}
+                            >
+                              <canvas ref={canvasRef} className="w-full h-full object-contain pointer-events-none" />
+                            </div>
+                          </>
+                        )}
+                      </div>
+
+                      {imageObj && (
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl space-y-4">
+                            <div className="flex items-center justify-between">
+                               <span className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Zoom Level</span>
+                               <span className="text-[10px] font-black text-indigo-400 font-mono">{Math.round(userScale * 100)}%</span>
+                            </div>
+                            <input type="range" min="0.1" max="4" step="0.01" value={userScale} onChange={(e) => setUserScale(parseFloat(e.target.value))} className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-indigo-500" />
+                            <div className="flex items-center justify-between">
+                              <div className="flex items-center gap-2 opacity-50"><Move className="w-3.5 h-3.5"/> <span className="text-[9px] font-bold uppercase">Pan by dragging</span></div>
+                              <button onClick={resetTransform} className="text-[10px] font-black uppercase text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5 transition-colors"><RotateCcw className="w-3.5 h-3.5" /> Reset View</button>
+                            </div>
+                          </div>
+                          <div className="bg-slate-900/60 border border-slate-800 p-5 rounded-2xl space-y-4">
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-black text-slate-500 uppercase tracking-widest flex items-center gap-2"><ScanLine className="w-3.5 h-3.5"/> Export Name</label>
+                              <input type="text" value={projectName} onChange={(e) => setProjectName(e.target.value)} className="w-full bg-slate-950 border border-slate-800 rounded-xl px-4 py-2.5 text-[11px] font-bold text-white outline-none focus:ring-2 focus:ring-indigo-500/50" />
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <footer className="mt-8 mb-4 flex justify-center">
+                <div className="bg-slate-900/80 border border-slate-800/80 px-8 py-4 rounded-3xl shadow-2xl backdrop-blur-md text-center max-w-2xl border-t-indigo-500/30">
+                  <p className="text-slate-300 font-medium text-sm md:text-base leading-relaxed">
+                    {mode === 'preset' ? (
+                      <>
+                        See examples and more information about the <span className="text-white font-black">{selectedType}</span> template{' '}
+                        <a 
+                          href={TEMPLATE_INFO_LINKS[selectedType] || "#"} 
+                          target="_blank" 
+                          rel="noopener noreferrer" 
+                          className="text-indigo-400 font-black hover:text-indigo-300 underline decoration-indigo-500/50 decoration-2 underline-offset-4 inline-flex items-center gap-1.5 transition-all group ml-1"
+                        >
+                          here <ExternalLink className="w-4 h-4 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                        </a>
+                      </>
+                    ) : (
+                      <span className="text-slate-400 italic">Custom dimension mode active. Presets are temporarily disabled.</span>
+                    )}
+                  </p>
+                </div>
+              </footer>
+            </div>
+          );
+        }
+
+        // Initialize the app
+        const root = createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
+</html>
