@@ -6,7 +6,7 @@ Pages URL: https://ddamico-at-thermo.github.io/resize/
 **HOW THIS TOOL WORKS**
 This is a client-side / serverless tool, which means that uploaded images remain local to your computer and browser and are not sent or saved on any server. 
 Still, please err on the side of caution by using this tool only for public-facing (non-confidential) images. 
-This tool enables interactive resizing of .jpg and .png images to pixel size, export in proper web file size (<200KB) and export with proper internal file naming convention. 
+This tool enables interactive resizing of .jpg and .png images to pixel size, compress to proper web file size (<200KB) and export with proper internal file naming convention. 
 
 **TO USE THE TOOL**
 1. Upload your image on the right side of the screen and it will appear in the preview window.
